@@ -65,8 +65,13 @@ def purchasePlaces():
 
         # Converting to int
         placesRequired = int(request.form['places'])
-        points_needed = placesRequired * placeCost
         club_points = int(club['points'])
+        
+        # Validating available points
+        points_needed = placesRequired * placeCost
+        if points_needed > club_points:
+            flash('Not enough points!')
+            return render_template('welcome.html', club=club, competitions=competitions)
         
         # Update club points
         club['points'] = str(club_points - points_needed)
