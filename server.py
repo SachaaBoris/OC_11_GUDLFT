@@ -19,6 +19,7 @@ app.secret_key = "something_special"
 
 competitions = loadCompetitions()
 clubs = loadClubs()
+placeCost = 1  # point(s)
 
 
 @app.route("/")
@@ -51,14 +52,35 @@ def book(competition, club):
         return render_template("welcome.html", club=club, competitions=competitions)
 
 
-@app.route("/purchasePlaces", methods=["POST"])
+@app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
-    competition = [c for c in competitions if c["name"] == request.form["competition"]][0]
-    club = [c for c in clubs if c["name"] == request.form["club"]][0]
-    placesRequired = int(request.form["places"])
-    competition["numberOfPlaces"] = int(competition["numberOfPlaces"]) - placesRequired
-    flash("Great-booking complete!")
-    return render_template("welcome.html", club=club, competitions=competitions)
+    try:
+        # Look for club & competition data
+        competition = next((c for c in competitions if c['name'] == request.form['competition']), None)
+        club = next((c for c in clubs if c['name'] == request.form['club']), None)
+        
+        if not competition or not club:
+            flash('Competition or club not found!')
+            return redirect(url_for('index'))
+
+        # Converting to int
+        placesRequired = int(request.form['places'])
+        points_needed = placesRequired * placeCost
+        club_points = int(club['points'])
+        
+        # Update club points
+        club['points'] = str(club_points - points_needed)
+        
+        flash('Great, booking complete!')
+        return render_template('welcome.html', club=club, competitions=competitions)
+        
+    except ValueError:
+        flash('Invalid number of places!')
+        return render_template('welcome.html', club=club, competitions=competitions)
+    except Exception as e:
+        app.logger.error(f"Error in purchasePlaces: {str(e)}")
+        flash('An unexpected error occurred. Please try again.')
+        return render_template('welcome.html', club=club, competitions=competitions)
 
 
 # TODO: Add route for points display
