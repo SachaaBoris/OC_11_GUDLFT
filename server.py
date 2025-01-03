@@ -1,5 +1,5 @@
 import json
-from flask import Flask, render_template, request, redirect, flash, url_for
+from flask import Flask, render_template, request, redirect, flash, url_for, session
 
 
 def loadClubs():
@@ -14,12 +14,20 @@ def loadCompetitions():
         return listOfCompetitions
 
 
+def init_booking_tracker():
+    return [{
+        "name": comp["name"],
+        "alreadyBooked": "0"
+    } for comp in competitions]
+
+
 app = Flask(__name__)
 app.secret_key = "something_special"
 
 competitions = loadCompetitions()
 clubs = loadClubs()
-placeCost = 1  # point(s)
+placeCost = 1   # Point(s)
+maxPlaces = 12  # Maximum places per competition, per club
 
 
 @app.route("/")
@@ -55,28 +63,57 @@ def book(competition, club):
 @app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
     try:
+        # Initialize booking_tracker
+        if 'booking_tracker' not in session:
+            session['booking_tracker'] = init_booking_tracker()
+        
         # Look for club & competition data
         competition = next((c for c in competitions if c['name'] == request.form['competition']), None)
         club = next((c for c in clubs if c['name'] == request.form['club']), None)
         
         if not competition or not club:
             flash('Competition or club not found!')
-            return redirect(url_for('index'))
-
-        # Converting to int
-        placesRequired = int(request.form['places'])
-        club_points = int(club['points'])
-        
-        # Validating available points
-        points_needed = placesRequired * placeCost
-        if points_needed > club_points:
-            flash('Not enough points!')
             return render_template('welcome.html', club=club, competitions=competitions)
         
-        # Update club points
-        club['points'] = str(club_points - points_needed)
+        # 1. Input validation
+        placesRequired = int(request.form['places'])
+        if placesRequired <= 0:
+            flash('Places to book must be a positive integer.')
+            return render_template('welcome.html', club=club, competitions=competitions)
+
+        # 2. Competition/Places availability
+        available_places = int(competition['numberOfPlaces'])
+        if available_places == 0:
+            flash('This competition is full.')
+            return render_template('welcome.html', club=club, competitions=competitions)
+        if placesRequired > available_places:
+            flash("This competition does not have this amount available.")
+            return render_template('welcome.html', club=club, competitions=competitions)
+
+        # 3. Booking limit validation
+        booking_tracker = session['booking_tracker']
+        current_booking = next((b for b in booking_tracker if b['name'] == competition['name']), None)
+        if not current_booking:
+            current_booking = {"name": competition['name'], "alreadyBooked": "0"}
+            booking_tracker.append(current_booking)
+        total_booked = int(current_booking['alreadyBooked']) + placesRequired
+        if total_booked > maxPlaces:
+            flash(f"Clubs are limited to {maxPlaces} places for one competition.")
+            return render_template('welcome.html', club=club, competitions=competitions)
+
+        # 4. Points validation
+        points_needed = placesRequired * placeCost
+        if points_needed > int(club['points']):
+            flash('Not enough points!')
+            return render_template('welcome.html', club=club, competitions=competitions)
+
+        # Everything validated, update values
+        competition['numberOfPlaces'] = str(available_places - placesRequired)
+        club['points'] = str(int(club['points']) - points_needed)
+        current_booking['alreadyBooked'] = str(total_booked)
+        session['booking_tracker'] = booking_tracker
         
-        flash('Great, booking complete!')
+        flash('Great-booking complete!')
         return render_template('welcome.html', club=club, competitions=competitions)
         
     except ValueError:
