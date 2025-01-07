@@ -45,20 +45,30 @@ def mocked_competitions_data():
     """Furnishes mocked competitions data."""
     return [
         {
+			"name": "SummerIs Magic",
+            "date": "2025-07-09 12:00:00",
+            "numberOfPlaces": "13"
+		},
+        {
             "name": "Winter SkiLïft",
             "date": "2025-02-15 10:00:00",
             "numberOfPlaces": "13"
         },
         {
             "name": "Spring Festival",
-            "date": "2024-03-27 10:00:00",
+            "date": "2025-03-27 10:00:00",
             "numberOfPlaces": "13"
         },
         {
             "name": "Fall Classic",
-            "date": "2020-10-22 13:30:00",
+            "date": "2025-10-22 13:30:00",
             "numberOfPlaces": "0"
-        }
+        },
+        {
+            "name": "Big Guy Lift",
+            "date": "2020-10-22 18:00:00",
+            "numberOfPlaces": "6"
+        },
     ]
 
 

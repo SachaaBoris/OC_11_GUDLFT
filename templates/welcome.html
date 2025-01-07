@@ -20,17 +20,43 @@
     <ul>
         {% for comp in competitions%}
         <li>
-            {{comp['name']}}<br />
-            Date: {{comp['date']}}</br>
-            Number of Places: {{comp['numberOfPlaces']}}
-            {%if comp['numberOfPlaces']|int >0%}
-            <a href="{{ url_for('book',competition=comp['name'],club=club['name']) }}">Book Places</a>
-            {%endif%}
+			<div class="competition" data-date="{{ comp['date'] }}">
+				{{ comp['name'] }}</br>
+				Date: {{comp['date']}}</br>
+				Number of Places: {{comp['numberOfPlaces']}}</br>
+				{% if comp['numberOfPlaces']|int > 0 %}
+					<a href="{{ url_for('book', competition=comp['name'], club=club['name']) }}" class="book-link">Book Places</a>
+					<span class="expired-message" style="display: none; color: red;">Booking closed</span>
+				{%endif%}
+			</div>
         </li>
         <hr />
         {% endfor %}
     </ul>
     {%endwith%}
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			const bookingDeadlineDays = {{ bookingDeadlineDays | int | safe }};
+			const currentDate = new Date();
+
+			document.querySelectorAll('.competition').forEach(comp => {
+				const competitionDateString = comp.dataset.date; // Format: "YYYY-MM-DD HH:mm:ss"
+				const [datePart, timePart] = competitionDateString.split(' ');
+				const [year, month, day] = datePart.split('-');
+				const [hour, minute, second] = timePart.split(':');
+				const competitionDate = new Date(year, month - 1, day, hour, minute, second);
+
+				const bookingDeadline = new Date(competitionDate);
+				bookingDeadline.setDate(competitionDate.getDate() - bookingDeadlineDays);
+
+				if (currentDate > bookingDeadline) {
+					comp.querySelector('.book-link').style.display = 'none';
+					comp.querySelector('.expired-message').style.display = 'block';
+				}
+			});
+		});
+	</script>
 
 </body>
 </html>

@@ -40,7 +40,7 @@ def test_competition_full(mocked_client, mocked_clubs_data, mocked_competitions_
     
     response = client.post('/purchasePlaces', data={
         'club': clubs[0]['name'],
-        'competition': competitions[2]['name'],
+        'competition': competitions[3]['name'],
         'places': '12'
     })
     assert response.status_code == 200
