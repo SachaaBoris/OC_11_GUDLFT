@@ -24,7 +24,11 @@ def init_booking_tracker():
 
 app = Flask(__name__)
 app.secret_key = "something_special"
-#app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)
+#app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)    # Lifetime of sessions
+#app.config['SESSION_REFRESH_EACH_REQUEST'] = True                  # Session refresh behavior
+#app.config["SESSION_COOKIE_SECURE"] = True                         # True if using HTTPS, else false
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"                       # Or "Strict"
+
 
 competitions = loadCompetitions()
 clubs = loadClubs()
@@ -35,6 +39,7 @@ bookingDeadlineDays = 1  # Booking possible until X days before competition date
 
 @app.route("/")
 def index():
+    session.clear()  # or better session.pop('connected', None)
     return render_template("index.html")
 
 
@@ -46,10 +51,10 @@ def showSummary():
     if not club:
         flash("Sorry, that email wasn't found.")
         return redirect(url_for('index'))
-
-    current_date = datetime.now()
-    competitions_with_deadline = []
-
+    
+    # Add session bool
+    session['connected'] = True
+    
     return render_template(
         'welcome.html',
         club=club,
@@ -58,25 +63,23 @@ def showSummary():
     )
 
 
-@app.route("/book/<competition>/<club>")
+@app.route("/book/<competition>/<club>", methods=["GET"])
 def book(competition, club):
-    foundClub = [c for c in clubs if c["name"] == club][0]
-    foundCompetition = [c for c in competitions if c["name"] == competition][0]
-    if foundClub and foundCompetition:
-        return render_template(
-            "booking.html",
-            club=foundClub,
-            competition=foundCompetition,
-            maxPlaces=maxPlaces
-        )
-    else:
-        flash("Something went wrong-please try again")
-        return render_template(
-            "welcome.html",
-            club=club,
-            competitions=competitions,
-            bookingDeadlineDays=bookingDeadlineDays
-        )
+    # Club & Competition lookup
+    foundClub = next((c for c in clubs if c["name"] == club), None)
+    foundCompetition = next((c for c in competitions if c["name"] == competition), None)
+
+    if not foundClub or not foundCompetition:
+        flash("Invalid club or competition. Please log in again.", "error")
+        return redirect(url_for("index"))
+
+    # Render booking
+    return render_template(
+        "booking.html",
+        club=foundClub,
+        competition=foundCompetition,
+        maxPlaces=maxPlaces
+    )
 
 
 @app.route('/purchasePlaces', methods=['POST'])
@@ -92,18 +95,13 @@ def purchasePlaces():
 
         if not competition or not club:
             flash("Competition or club not found!")
-            return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            return redirect(url_for('index'))
 
         # 1. Date validation
         competition_date = datetime.strptime(competition['date'], "%Y-%m-%d %H:%M:%S")
         current_date = datetime.now()
         booking_deadline = competition_date - timedelta(days=bookingDeadlineDays)
-        if current_date > booking_deadline:
+        if current_date >= booking_deadline:
             flash("This competition is no longer bookable.")
             return render_template(
                 'welcome.html',
@@ -116,7 +114,11 @@ def purchasePlaces():
         placesRequired = int(request.form['places'])
         if placesRequired <= 0:
             flash("Places to book must be a positive integer.")
-            return render_template('welcome.html', club=club, competitions=competitions)
+            return render_template(
+                'welcome.html',
+                club=club,
+                competitions=competitions
+            )
 
         # 3. Competition/Places availability
         available_places = int(competition['numberOfPlaces'])
@@ -169,7 +171,7 @@ def purchasePlaces():
         club['points'] = str(int(club['points']) - points_needed)
         current_booking['alreadyBooked'] = str(total_booked)
         session['booking_tracker'] = booking_tracker
-        
+
         flash("Great-booking complete!")
         return render_template(
                 'welcome.html',
@@ -197,7 +199,13 @@ def purchasePlaces():
             )
 
 
-# TODO: Add route for points display
+@app.route('/board')
+def board():
+    return render_template(
+        'board.html',
+        clubs=clubs,
+        connected=session.get('connected', False)
+    )
 
 
 @app.route("/logout")
