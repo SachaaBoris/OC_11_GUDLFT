@@ -1,13 +1,12 @@
 import sys
 import os
-import pytest
 
 # Adding root project folder
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_root)
 
-from server import app, loadClubs, loadCompetitions
-
+from server import app
+import pytest
 
 # Fixtures
 @pytest.fixture
@@ -45,10 +44,10 @@ def mocked_competitions_data():
     """Furnishes mocked competitions data."""
     return [
         {
-			"name": "SummerIs Magic",
+            "name": "SummerIs Magic",
             "date": "2025-07-09 12:00:00",
             "numberOfPlaces": "13"
-		},
+        },
         {
             "name": "Winter SkiLïft",
             "date": "2025-02-15 10:00:00",

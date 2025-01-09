@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_purchase_places_updates_points(mocked_client, mocked_clubs_data):
     """Test that club points are updated after purchasing places."""
     client = mocked_client

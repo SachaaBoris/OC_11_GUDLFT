@@ -24,10 +24,11 @@ def init_booking_tracker():
 
 app = Flask(__name__)
 app.secret_key = "something_special"
-#app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)    # Lifetime of sessions
-#app.config['SESSION_REFRESH_EACH_REQUEST'] = True                  # Session refresh behavior
-#app.config["SESSION_COOKIE_SECURE"] = True                         # True if using HTTPS, else false
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"                       # Or "Strict"
+# app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)    # Lifetime of sessions
+# app.config['SESSION_REFRESH_EACH_REQUEST'] = True                  # Session refresh behavior
+# app.config["SESSION_COOKIE_SECURE"] = True                         # True if using HTTPS, else false
+# Or "Strict"
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 
 competitions = loadCompetitions()
@@ -51,10 +52,10 @@ def showSummary():
     if not club:
         flash("Sorry, that email wasn't found.")
         return redirect(url_for('index'))
-    
+
     # Add session bool
     session['connected'] = True
-    
+
     return render_template(
         'welcome.html',
         club=club,
@@ -67,7 +68,8 @@ def showSummary():
 def book(competition, club):
     # Club & Competition lookup
     foundClub = next((c for c in clubs if c["name"] == club), None)
-    foundCompetition = next((c for c in competitions if c["name"] == competition), None)
+    foundCompetition = next(
+        (c for c in competitions if c["name"] == competition), None)
 
     if not foundClub or not foundCompetition:
         flash("Invalid club or competition. Please log in again.", "error")
@@ -90,17 +92,22 @@ def purchasePlaces():
             session['booking_tracker'] = init_booking_tracker()
 
         # Look for club & competition data
-        competition = next((c for c in competitions if c['name'] == request.form['competition']), None)
-        club = next((c for c in clubs if c['name'] == request.form['club']), None)
+        competition = next(
+            (c for c in competitions if c['name'] == request.form['competition']), None)
+        club = next(
+            (c for c in clubs if c['name'] == request.form['club']),
+            None)
 
         if not competition or not club:
             flash("Competition or club not found!")
             return redirect(url_for('index'))
 
         # 1. Date validation
-        competition_date = datetime.strptime(competition['date'], "%Y-%m-%d %H:%M:%S")
+        competition_date = datetime.strptime(
+            competition['date'], "%Y-%m-%d %H:%M:%S")
         current_date = datetime.now()
-        booking_deadline = competition_date - timedelta(days=bookingDeadlineDays)
+        booking_deadline = competition_date - \
+            timedelta(days=bookingDeadlineDays)
         if current_date >= booking_deadline:
             flash("This competition is no longer bookable.")
             return render_template(
@@ -141,13 +148,17 @@ def purchasePlaces():
 
         # 4. Booking limit validation
         booking_tracker = session['booking_tracker']
-        current_booking = next((b for b in booking_tracker if b['name'] == competition['name']), None)
+        current_booking = next(
+            (b for b in booking_tracker if b['name'] == competition['name']), None)
         if not current_booking:
-            current_booking = {"name": competition['name'], "alreadyBooked": "0"}
+            current_booking = {
+                "name": competition['name'],
+                "alreadyBooked": "0"}
             booking_tracker.append(current_booking)
         total_booked = int(current_booking['alreadyBooked']) + placesRequired
         if total_booked > maxPlaces:
-            flash(f"Clubs are limited to {maxPlaces} places for one competition.")
+            flash(
+                f"Clubs are limited to {maxPlaces} places for one competition.")
             return render_template(
                 'welcome.html',
                 club=club,
@@ -174,29 +185,29 @@ def purchasePlaces():
 
         flash("Great-booking complete!")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            bookingDeadlineDays=bookingDeadlineDays
+        )
 
     except ValueError:
         flash("Invalid number of places!")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            bookingDeadlineDays=bookingDeadlineDays
+        )
     except Exception as e:
         app.logger.error(f"Error in purchasePlaces: {str(e)}")
         flash("An unexpected error occurred. Please try again.")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            bookingDeadlineDays=bookingDeadlineDays
+        )
 
 
 @app.route('/board')
