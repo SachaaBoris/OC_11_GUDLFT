@@ -1,8 +1,4 @@
-import pytest
-
 def test_board_page(unknown_client, mocked_client, mocked_clubs_data):
-    clubs = mocked_clubs_data  # Load mock club data
-    
     # Not connected guest
     client = unknown_client
     response = client.get('/board')

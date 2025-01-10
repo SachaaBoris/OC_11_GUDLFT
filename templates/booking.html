@@ -11,8 +11,27 @@
     <form action="/purchasePlaces" method="post">
         <input type="hidden" name="club" value="{{club['name']}}">
         <input type="hidden" name="competition" value="{{competition['name']}}">
-        <label for="places">How many places?</label><input type="number" name="places" id="places" min="1" max="{{ maxPlaces }}"/>
-        <button type="submit">Book</button>
+        <label for="places">How many places?</label>
+		{% set max_input = 0 %}
+		{% set disable_input = True %}
+
+		{% if competition_places > 0 %}
+			{% if available_points >= max_places %}
+				{% set max_input = max_places if competition_places >= max_places else competition_places %}
+			{% else %}
+				{% set max_input = available_points if available_points <= competition_places else competition_places %}
+			{% endif %}
+			{% set disable_input = False %}
+		{% endif %}
+
+		<input type="number" name="places" id="places" 
+			   min="{{ 1 if not disable_input else 0 }}" 
+			   max="{{ max_input }}" 
+			   {% if disable_input %}disabled{% endif %}/>
+
+		<button type="submit" {% if disable_input %}disabled{% endif %}>
+			Book
+		</button>
     </form>
 </body>
 </html>

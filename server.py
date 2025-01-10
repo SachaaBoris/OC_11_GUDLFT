@@ -24,17 +24,17 @@ def init_booking_tracker():
 
 app = Flask(__name__)
 app.secret_key = "something_special"
-#app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)    # Lifetime of sessions
-#app.config['SESSION_REFRESH_EACH_REQUEST'] = True                  # Session refresh behavior
-#app.config["SESSION_COOKIE_SECURE"] = True                         # True if using HTTPS, else false
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"                       # Or "Strict"
+# app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=1)    # Lifetime of sessions
+# app.config['SESSION_REFRESH_EACH_REQUEST'] = True                  # Session refresh behavior
+# app.config["SESSION_COOKIE_SECURE"] = True                         # True if using HTTPS, else false
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"                        # Or "Strict"
 
 
 competitions = loadCompetitions()
 clubs = loadClubs()
-placeCost = 1            # Point(s)
-maxPlaces = 12           # Maximum places per competition, per club
-bookingDeadlineDays = 1  # Booking possible until X days before competition date
+PLACE_COST = 1            # Point(s)
+MAX_PLACES = 12           # Maximum places per competition, per club
+DEADLINE_DAYS = 1         # Booking possible until X days before competition date
 
 
 @app.route("/")
@@ -51,15 +51,15 @@ def showSummary():
     if not club:
         flash("Sorry, that email wasn't found.")
         return redirect(url_for('index'))
-    
+
     # Add session bool
     session['connected'] = True
-    
+
     return render_template(
         'welcome.html',
         club=club,
         competitions=competitions,
-        bookingDeadlineDays=bookingDeadlineDays
+        deadline_days=DEADLINE_DAYS
     )
 
 
@@ -67,7 +67,8 @@ def showSummary():
 def book(competition, club):
     # Club & Competition lookup
     foundClub = next((c for c in clubs if c["name"] == club), None)
-    foundCompetition = next((c for c in competitions if c["name"] == competition), None)
+    foundCompetition = next(
+        (c for c in competitions if c["name"] == competition), None)
 
     if not foundClub or not foundCompetition:
         flash("Invalid club or competition. Please log in again.", "error")
@@ -78,7 +79,9 @@ def book(competition, club):
         "booking.html",
         club=foundClub,
         competition=foundCompetition,
-        maxPlaces=maxPlaces
+        competition_places=int(foundCompetition['numberOfPlaces']),
+        available_points=int(foundClub['points']),
+        max_places=MAX_PLACES
     )
 
 
@@ -90,24 +93,29 @@ def purchasePlaces():
             session['booking_tracker'] = init_booking_tracker()
 
         # Look for club & competition data
-        competition = next((c for c in competitions if c['name'] == request.form['competition']), None)
-        club = next((c for c in clubs if c['name'] == request.form['club']), None)
+        competition = next(
+            (c for c in competitions if c['name'] == request.form['competition']), None)
+        club = next(
+            (c for c in clubs if c['name'] == request.form['club']),
+            None)
 
         if not competition or not club:
             flash("Competition or club not found!")
             return redirect(url_for('index'))
 
         # 1. Date validation
-        competition_date = datetime.strptime(competition['date'], "%Y-%m-%d %H:%M:%S")
+        competition_date = datetime.strptime(
+            competition['date'], "%Y-%m-%d %H:%M:%S")
         current_date = datetime.now()
-        booking_deadline = competition_date - timedelta(days=bookingDeadlineDays)
+        booking_deadline = competition_date - \
+            timedelta(days=DEADLINE_DAYS)
         if current_date >= booking_deadline:
             flash("This competition is no longer bookable.")
             return render_template(
                 'welcome.html',
                 club=club,
                 competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
+                deadline_days=DEADLINE_DAYS
             )
 
         # 2. Input validation
@@ -128,7 +136,7 @@ def purchasePlaces():
                 'welcome.html',
                 club=club,
                 competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
+                deadline_days=DEADLINE_DAYS
             )
         if placesRequired > available_places:
             flash("This competition does not have this amount available.")
@@ -136,34 +144,38 @@ def purchasePlaces():
                 'welcome.html',
                 club=club,
                 competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
+                deadline_days=DEADLINE_DAYS
             )
 
         # 4. Booking limit validation
         booking_tracker = session['booking_tracker']
-        current_booking = next((b for b in booking_tracker if b['name'] == competition['name']), None)
+        current_booking = next(
+            (b for b in booking_tracker if b['name'] == competition['name']), None)
         if not current_booking:
-            current_booking = {"name": competition['name'], "alreadyBooked": "0"}
+            current_booking = {
+                "name": competition['name'],
+                "alreadyBooked": "0"}
             booking_tracker.append(current_booking)
         total_booked = int(current_booking['alreadyBooked']) + placesRequired
-        if total_booked > maxPlaces:
-            flash(f"Clubs are limited to {maxPlaces} places for one competition.")
+        if total_booked > MAX_PLACES:
+            flash(
+                f"Clubs are limited to {MAX_PLACES} places for one competition.")
             return render_template(
                 'welcome.html',
                 club=club,
                 competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
+                deadline_days=DEADLINE_DAYS
             )
 
         # 5. Points validation
-        points_needed = placesRequired * placeCost
+        points_needed = placesRequired * PLACE_COST
         if points_needed > int(club['points']):
             flash("Not enough points!")
             return render_template(
                 'welcome.html',
                 club=club,
                 competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
+                deadline_days=DEADLINE_DAYS
             )
 
         # Everything validated, update values
@@ -174,29 +186,29 @@ def purchasePlaces():
 
         flash("Great-booking complete!")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            deadline_days=DEADLINE_DAYS
+        )
 
     except ValueError:
         flash("Invalid number of places!")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            deadline_days=DEADLINE_DAYS
+        )
     except Exception as e:
         app.logger.error(f"Error in purchasePlaces: {str(e)}")
         flash("An unexpected error occurred. Please try again.")
         return render_template(
-                'welcome.html',
-                club=club,
-                competitions=competitions,
-                bookingDeadlineDays=bookingDeadlineDays
-            )
+            'welcome.html',
+            club=club,
+            competitions=competitions,
+            deadline_days=DEADLINE_DAYS
+        )
 
 
 @app.route('/board')

@@ -1,4 +1,3 @@
-import pytest
 from flask import get_flashed_messages
 
 
@@ -10,7 +9,8 @@ def test_purchase_places_positive_points(mocked_client, mocked_clubs_data):
     # Initial club data
     initial_points = int(clubs[1]['points'])  # Iron Temple points = 4
     places_to_purchase = 6  # Attempt to purchase more places than the club can afford
-    expected_remaining_points = initial_points  # Points should not change if the purchase fails
+    # Points should not change if the purchase fails
+    expected_remaining_points = initial_points
 
     # Simulate the purchase with more places than available points
     response = client.post(
@@ -24,8 +24,10 @@ def test_purchase_places_positive_points(mocked_client, mocked_clubs_data):
 
     # Verify that the request failed and points remain unchanged
     assert response.status_code == 200
-    assert int(clubs[1]['points']) == expected_remaining_points  # 4 (initial) expected
+    # 4 (initial) expected
+    assert int(clubs[1]['points']) == expected_remaining_points
 
     # Verify the flash message
     flashed_messages = get_flashed_messages()
-    assert 'Not enough points!' in flashed_messages  # Flash message should indicate "Not enough points!"
+    # Flash message should indicate "Not enough points!"
+    assert 'Not enough points!' in flashed_messages
