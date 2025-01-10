@@ -1,4 +1,4 @@
-<p align="center"><img src="https://github.com/SachaaBoris/OC_11_GUDLFT/blob/v0.7_QA/static/logo.png" width="300"/></p>
+<p align="center"><img src="https://github.com/SachaaBoris/OC_11_GudLft/blob/master/static/logo.png" width="300"/></p>
 
 # gudlift-registration
 
