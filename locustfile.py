@@ -1,4 +1,4 @@
-# locust -f locustfile.py --headless -u 100 -r 10 -t 30s --host=http://localhost:5000 --html=/locust/report.html
+# locust -f locustfile.py --headless -u 6 -r 1 -t 30s --host=http://127.0.0.1:5000 --html=reports/locust/report.html --csv=reports/locust/results
 # This locust command will help identify :
 #       The load capacity of your application
 #       Potential bottlenecks
@@ -9,6 +9,9 @@ from locust import HttpUser, task, between, events
 from datetime import datetime
 import random
 
+
+import random
+from locust import HttpUser, task, between
 
 class GUDLFTUser(HttpUser):
     wait_time = between(1, 3)
@@ -33,20 +36,28 @@ class GUDLFTUser(HttpUser):
         with self.client.post("/showSummary",
                               data={"email": self.email},
                               catch_response=True) as response:
-            if "Welcome" not in response.text:
-                response.failure("Login failed")
+            if response.status_code != 200:
+                response.failure(f"Login failed with status code {response.status_code}")
+            elif "Welcome" not in response.text:
+                response.failure("Login failed: Unexpected response content")
 
     @task(10)
     def view_home(self):
         """View home page."""
-        self.client.get("/")
+        with self.client.get("/", catch_response=True) as response:
+            if response.status_code != 200:
+                response.failure(f"Home page failed with status code {response.status_code}")
+            elif "Welcome" not in response.text:
+                response.failure("Home page failed: Unexpected response content")
 
     @task(5)
     def view_board(self):
         """View points board."""
         with self.client.get("/board", catch_response=True) as response:
-            if "Club Points Board" not in response.text:
-                response.failure("Board page failed to load")
+            if response.status_code != 200:
+                response.failure(f"Board page failed with status code {response.status_code}")
+            elif "Club Points Board" not in response.text:
+                response.failure("Board page failed: Unexpected response content")
 
     @task(3)
     def book_places(self):
@@ -63,8 +74,18 @@ class GUDLFTUser(HttpUser):
                               catch_response=True) as response:
             if "Great-booking complete!" in response.text:
                 response.success()
+            elif "Not enough points!" in response.text:
+                response.failure("Booking failed: Not enough points")
+            elif "This competition is no longer bookable." in response.text:
+                response.failure("Booking failed: Competition no longer bookable")
+            elif "Places to book must be a positive integer." in response.text:
+                response.failure("Booking failed: Invalid number of places")
+            elif "Clubs are limited to" in response.text:
+                response.failure("Booking failed: Booking limit exceeded")
+            elif "Competition or club not found!" in response.text:
+                response.failure("Booking failed: Competition or club not found")
             else:
-                response.failure("Booking failed")
+                response.failure(f"Unexpected booking response: {response.text}")
 
     @task(1)
     def invalid_booking(self):
@@ -77,16 +98,30 @@ class GUDLFTUser(HttpUser):
         ]
         scenario = random.choice(scenarios)
 
-        self.client.post("/purchasePlaces",
-                         data={
-                             "club": "Simply Lift",
-                             "competition": "Spring Festival",
-                             **scenario
-                         })
+        with self.client.post("/purchasePlaces",
+                              data={
+                                  "club": "Simply Lift",
+                                  "competition": "Spring Festival",
+                                  **scenario
+                              },
+                              catch_response=True) as response:
+            if "Great-booking complete!" in response.text:
+                response.success()
+            elif "Not enough points!" in response.text:
+                response.failure("Booking failed: Not enough points")
+            elif "This competition is no longer bookable." in response.text:
+                response.failure("Booking failed: Competition no longer bookable")
+            elif "Places to book must be a positive integer." in response.text:
+                response.failure("Booking failed: Invalid number of places")
+            elif "Clubs are limited to" in response.text:
+                response.failure("Booking failed: Booking limit exceeded")
+            elif "Competition or club not found!" in response.text:
+                response.failure("Booking failed: Competition or club not found")
+            else:
+                response.failure(f"Unexpected booking response: {response.text}")
+
 
 # Custom events
-
-
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     print(f"Test started at: {datetime.now()}")
